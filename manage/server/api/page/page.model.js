@@ -19,7 +19,10 @@ var PageSchema = new Schema({
   creator: { type: Schema.Types.ObjectId, ref: 'User' },
   createTime: Date,
   resources: [ResourceSchema],
-  enabled: { type: Boolean, default: true }
+  enabled: { type: Boolean, default: true },
+  startDate: String,
+  endDate: String,
+  state: Number
 });
 
 module.exports = mongoose.model('Page', PageSchema);

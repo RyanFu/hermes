@@ -1,7 +1,31 @@
 'use strict';
 
+
+
 angular.module('manageApp')
-  .controller('ResourcesCtrl', function ($rootScope, $scope, $routeParams, LxNotificationService, LxDialogService, Resources, ServiceHelper) {
+  .filter("dateFormater", function () {
+    var padding = function (num, len) {
+      var len = len || 2;
+      return String(new Array(len+1).join('0') + num).substr(-2);
+    };
+    return function (input) {
+      var
+        date,
+        num = Number(input);
+      date = isNaN(num) ? new Date(input) : new Date(num);
+      var 
+        YYYY = date.getFullYear(),
+        MM = padding(date.getMonth() + 1),
+        DD = padding(date.getDate()),
+        hh = padding(date.getHours()),
+        mm = padding(date.getMinutes()),
+        ss = padding(date.getSeconds());
+      if (String(date) !== 'Invalid Date')
+        return [YYYY, MM, DD].join('/') + ' ' + [hh, mm, ss].join(':');
+      return 'Invalid Date';
+    }
+  })
+  .controller('ResourcesCtrl', function ($rootScope, $scope, $routeParams, LxNotificationService, LxDialogService, Resources, ServiceHelper, $filter) {
     var id = $routeParams.id;
     $rootScope.pageName = 'resources';
 
@@ -16,10 +40,24 @@ angular.module('manageApp')
     }
 
     $scope.add = function () {
+      var
+        date = new Date(),
+        YYYY = date.getFullYear(),
+        MM = date.getMonth()+1,
+        DD = date.getDate(),
+        start = new Date(YYYY + '/' + MM + '/' + DD + ' 00:00:00'),
+        end = new Date(YYYY + '/' + MM + '/' + DD + ' 23:59:59'),
+        startDate = $filter('dateFormater')(start),
+        endDate = $filter('dateFormater')(end);
+
       $scope.currentEdit = {
         resources: [],
         newResources: [],
-        showLoading: false
+        showLoading: false,
+        startDate: startDate,
+        endDate: endDate,
+        formattedStartDate: startDate,
+        formattedEndDate: endDate
       };
       $scope.modifyType = 'add';
       LxDialogService.open('editResourcesDialog');
@@ -40,6 +78,12 @@ angular.module('manageApp')
 
     $scope.edit = function (page) {
       $scope.currentEdit = angular.copy(page);
+      $scope.currentEdit.formattedStartDate = $filter('dateFormater')(
+        $scope.currentEdit.startDate
+      );
+      $scope.currentEdit.formattedEndDate = $filter('dateFormater')(
+        $scope.currentEdit.endDate
+      );
       $scope.currentEdit.showLoading = false;
       $scope.currentEdit.newResources = [];
       $scope.modifyType = 'edit';
@@ -63,13 +107,22 @@ angular.module('manageApp')
 
     $scope.saveEdit = function () {
       var editPage = angular.copy($scope.currentEdit);
+      editPage.startDate = editPage.formattedStartDate;
+      editPage.EndDate = editPage.formattedEndDate;
 
       delete editPage.modifyType;
+      delete editPage.formattedStartDate;
+      delete editPage.formattedEndDate;
 
       if (!$scope.uriValidation(editPage.uri) || !$scope.emptyValidation(editPage.description)) {
         LxNotificationService.error('请输入正确！');
         return;
       }
+      if (!$scope.dateValidation(editPage.startDate) || !$scope.dateValidation(editPage.endDate) || new Date($scope.currentEdit.formattedEndDate) - new Date($scope.currentEdit.formattedStartDate) < 0) {
+        LxNotificationService.error('开始结束时间错误！');
+        return;
+      }
+
       $scope.currentEdit.showLoading = true;
       if ($.isArray(editPage.newResources)) {
         editPage.resources = editPage.resources.concat(editPage.newResources);
@@ -96,6 +149,10 @@ angular.module('manageApp')
 
     $scope.emptyValidation = function (input) {
       return ServiceHelper.regRex.empty.test(input);
+    };
+
+    $scope.dateValidation = function (input) {
+      return $filter('dateFormater')(input) !== 'Invalid Date';
     };
 
     getResourcesList();

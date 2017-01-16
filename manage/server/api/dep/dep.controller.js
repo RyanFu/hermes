@@ -7,6 +7,10 @@ var Dep = require('./dep.model');
 var Page = require('../page/page.model');
 var UserController = require('../user/user.controller');
 var config = require('../../config/environment');
+var jfs = require('../../components/jfs');
+var generator = require('../../components/generator');
+var publisher = require('../../components/publisher');
+var tools = require('../../components/tools');
 
 // Get list of deps
 exports.index = function(req, res) {
@@ -48,12 +52,14 @@ exports.create = function(req, res) {
   var body = req.body;
   var existDeps = req.body.existDeps; // 已经存在的
   var createDeps = req.body.createDeps; // 需要新创建
+  var jsonpConf = body.jsonpConf || { enable: true };
   var user = req.user;
   var depParam = {
     uri: body.uri,
     description: body.description,
     creator: user._id,
-    createTime: new Date()
+    createTime: new Date(),
+    jsonpConf: body.jsonpConf
   };
   if (!_.isArray(existDeps) && !_.isArray(createDeps)) {
     return res.json(200, {
@@ -97,71 +103,162 @@ exports.create = function(req, res) {
 };
 
 // Updates an existing dep in the DB.
+// exports.update = function(req, res) {
+//   if(req.body._id) { delete req.body._id; }
+//   Dep.findById(req.params.id, function (err, dep) {
+//     if (err) { return handleError(res, err); }
+//     if(!dep) { return res.send(404); }
+//     var body = req.body;
+//     var depPages = body.pages;
+//     var createDeps = body.createDeps;
+//     var existDeps = body.existDeps;
+//     var user = req.user;
+//     var jsonpConf = body.jsonpConf || { enable: true };
+//     var depsParam = [];
+//     if (_.isArray(createDeps) && createDeps.length > 0) {
+//       createDeps.forEach(function (item) {
+//         item.creator = user._id;
+//         item.createTime = new Date();
+//       });
+//       Page.collection.insert(createDeps, function (err, pages) {
+//         if(err) {
+//           if (err.code === 11000) {
+//             return res.json(200, {
+//               no: 10001,
+//               errmsg: '所依赖的页面已经存在'
+//             });
+//           }
+//           return handleError(res, err);
+//         }
+//         var pagesIds = _.pluck(pages, '_id');
+//         if (_.isArray(existDeps) && existDeps.length > 0) {
+//           existDeps = _.pluck(existDeps, '_id');
+//           depsParam = depsParam.concat(existDeps);console.log(typeof c._id);
+//         }
+//         depsParam = depsParam.concat(pagesIds);
+//         depPages = _.pluck(depPages, '_id');
+//         depPages = depPages.concat(depsParam);
+//         dep.uri = req.body.uri;
+//         dep.description = req.body.description;
+//         dep.pages = depPages;
+//         dep.save(function (err) {
+//           if (err) { return handleError(res, err); }
+//           return res.json(200, {
+//             no: 0,
+//             errmsg: '成功',
+//             data: dep
+//           });
+//         });
+//       });
+//     } else {
+//       if (_.isArray(existDeps) && existDeps.length > 0) {
+//         existDeps = _.pluck(existDeps, '_id');
+//         depsParam = depsParam.concat(existDeps);
+//       }
+//       depPages = _.pluck(depPages, '_id');
+//       depPages = depPages.concat(depsParam);
+//       dep.pages = depPages;
+//       dep.uri = body.uri;
+//       dep.jsonpConf = jsonpConf;
+//       dep.description = body.description;
+//       dep.save(function (err) {
+//         if (err) { return handleError(res, err); }
+//         return res.json(200, {
+//           no: 0,
+//           errmsg: '成功',
+//           data: dep
+//         });
+//       });
+//     }
+//   });
+// };
+
+
+var createPages = function (createDeps, user) {
+  return new Promise(function (resolve, reject) {
+    if (_.isArray(createDeps) && createDeps.length) {
+      createDeps.map(function (v) {
+        v.creator = user._id;
+        v.createTime = new Date();
+        return v;
+      });
+      Page.collection.insert(createDeps, function (err, pages) {
+        if (err && err.code === 11000)
+          return reject({
+            no: 10001,
+            errmsg: '所依赖的页面已经存在'
+          });
+        resolve(pages)
+      });
+    }
+    else
+      resolve();
+  });
+};
+
+var generateDep = function (req) {
+  return new Promise(function (resolve, reject) {
+    var
+      body = req.body,
+      user = req.user,
+      createDeps = body.createDeps,
+      autoPublish = body.autoPublish,
+      depPages = body.pages.map(function (v) {
+        return v._id;
+      }),
+      existDeps = body.existDeps,
+      jsonpConf = body.jsonpConf || { enable: true };
+    createPages(createDeps, user)
+      .then(function (createdPages) {
+        var
+          createData = [],
+          existData = [];
+        if (_.isArray(createdPages) && createdPages.length) {
+          createData = createdPages.map(function (v) { return v._id; });
+        }
+        if (_.isArray(existDeps) && existDeps.length) {
+          existData = existDeps.map(function (v) { return v._id; });
+        }
+        resolve({
+          uri: req.body.uri,
+          description: req.body.description,
+          pages: depPages.concat(createData, existData),
+          jsonpConf: jsonpConf,
+          autoPublish: autoPublish
+        });
+      });
+  });
+};
+
+
 exports.update = function(req, res) {
   if(req.body._id) { delete req.body._id; }
   Dep.findById(req.params.id, function (err, dep) {
     if (err) { return handleError(res, err); }
     if(!dep) { return res.send(404); }
-    var body = req.body;
-    var depPages = body.pages;
-    var createDeps = body.createDeps;
-    var existDeps = body.existDeps;
-    var user = req.user;
-    var depsParam = [];
-    if (_.isArray(createDeps) && createDeps.length > 0) {
-      createDeps.forEach(function (item) {
-        item.creator = user._id;
-        item.createTime = new Date();
-      });
-      Page.collection.insert(createDeps, function (err, pages) {
-        if(err) {
-          if (err.code === 11000) {
-            return res.json(200, {
-              no: 10001,
-              errmsg: '所依赖的页面已经存在'
-            });
-          }
-          return handleError(res, err);
-        }
-        var pagesIds = _.pluck(pages, '_id');
-        if (_.isArray(existDeps) && existDeps.length > 0) {
-          existDeps = _.pluck(existDeps, '_id');
-          depsParam = depsParam.concat(existDeps);
-        }
-        depsParam = depsParam.concat(pagesIds);
-        depPages = _.pluck(depPages, '_id');
-        depPages = depPages.concat(depsParam);
-        dep.uri = req.body.uri;
-        dep.description = req.body.description;
-        dep.pages = depPages;
-        dep.save(function (err) {
-          if (err) { return handleError(res, err); }
-          return res.json(200, {
-            no: 0,
-            errmsg: '成功',
-            data: dep
-          });
-        });
-      });
-    } else {
-      if (_.isArray(existDeps) && existDeps.length > 0) {
-        existDeps = _.pluck(existDeps, '_id');
-        depsParam = depsParam.concat(existDeps);
-      }
-      depPages = _.pluck(depPages, '_id');
-      depPages = depPages.concat(depsParam);
-      dep.pages = depPages;
-      dep.uri = req.body.uri;
-      dep.description = req.body.description;
-      dep.save(function (err) {
-        if (err) { return handleError(res, err); }
-        return res.json(200, {
+
+    generateDep(req)
+      .then(tools.save.bind(null, dep))
+      .then(function () { // 重新生成
+        return generator.generate(dep._id);
+      })
+      .then(function (data) { // 自动发布
+        if (data.dep.autoPublish)
+          return publisher.publish(dep._id);
+      })
+      .then(function () { // 回包
+        res.json(200, {
           no: 0,
           errmsg: '成功',
           data: dep
         });
+      })
+      .catch(function (err) {
+        res.json(500, Object.assign({
+          no: 1,
+          errmsg: '失败'
+        }, err));
       });
-    }
   });
 };
 
@@ -178,78 +275,33 @@ exports.destroy = function(req, res) {
 };
 
 // 读取数据，生成配置文件
-exports.generate = function (req, res) {
+// exports.generate = function (req, res) {
+//   var depId = req.params.id;
+//   generator.generate(depId).then(function (data) {
+//     res.json(200, data);
+//   }).catch(function (err) {
+//     res.json(500, err);
+//   });
+// };
+
+// 发布到CDN
+exports.publish = function (req, res) {
   var depId = req.params.id;
-  Dep.findById(depId, '-creator -createTime -_id -__v')
-    .sort({createTime: 'desc'})
-    .populate({
-      path: 'pages',
-      // match: { $or: [{'enabled': true}, {'enabled': { $exists: true }}] },
-      select: '-uri -description -creator -createTime -_id -__v -resources.enabled -resources._id'
-    }).exec(function (err, dep) {
-      if(err) { return handleError(res, err); }
-      var date = new Date();
-      var now = date.getTime();
-      var folderName = config.root + config.staticPath + 'data';
-      var newFile = path.join(folderName, 'config_file_' + depId + '_' + now + '.conf');
-      var defaultFile = path.join(folderName, 'config_file_' + depId + '.conf');
-      var existPromise = function () {
-        return new Promise(function (resolve, reject) {
-          fs.exists(folderName, function (exists) {
-            if (exists) {
-              resolve();
-            } else {
-              reject();
-            }
-          });
-        });
-      };
-
-      var mkdirPromise = function () {
-        return new Promise(function (resolve, reject) {
-          fs.mkdir(folderName, function (err) {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-      };
-
-      dep = dep.toObject();
-
-      // 针对数据进行必要处理
-      dep.resources = [];
-      if (_.isArray(dep.pages) && dep.pages.length > 0) {
-        dep.pages.forEach(function (page) {
-          if (page.resources && page.enabled) {
-            page.resources.forEach(function (resource) {
-              dep.resources.push(resource);
-            });
-          }
-        });
-      }
-      delete dep.pages;
-      existPromise().then(function () {
-      }, mkdirPromise).then(function () {
-        fs.writeFile(newFile, JSON.stringify(dep), function (err) {
-          if (err) {
-            throw err;
-          }
-          fs.createReadStream(newFile).pipe(fs.createWriteStream(defaultFile));
-          return res.json(200, {
-            no: 0,
-            errmsg: '生成文件成功',
-            data: {
-              fileName: 'config_file_' + depId + '.conf',
-              path: '/data/config_file_' + depId + '.conf'
-            }
-          });
-        });
-      });
-
+  generator.generate(depId)
+  .then(publisher.publish.bind(null, depId))
+  .then(function (data) {
+    res.json(200, {
+      no: 0,
+      errmsg: '发布文件成功',
+      data: data
     });
+  }).catch(function (err) {
+    res.json(500, {
+      no: 1,
+      errmsg: '发布文件失败',
+      data: err
+    });
+  });
 };
 
 function handleError(res, err) {

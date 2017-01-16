@@ -14,7 +14,14 @@ var DepSchema = new Schema({
   product: String,
   creator: { type: Schema.Types.ObjectId, ref: 'User' },
   createTime: Date,
-  pages: [{ type: Schema.Types.ObjectId, ref: 'Page' }]
+  pages: [{ type: Schema.Types.ObjectId, ref: 'Page' }],
+  jsonpConf: {
+    enable: Boolean,
+    callback: String
+  },
+  autoPublish: Boolean,
+  lastModified: Date,
+  lastPublished: Date
 });
 
 module.exports = mongoose.model('Dep', DepSchema);

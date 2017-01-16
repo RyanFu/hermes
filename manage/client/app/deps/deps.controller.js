@@ -11,6 +11,10 @@ angular.module('manageApp')
       Deps.get().$promise.then(function (data) {
         if (data.no === 0) {
           $scope.depsList = data.data;
+          $scope.depsList.forEach(function (v, k) {
+            v.publishBtnText = '发布文件';
+            v.cdnUrl = 'http://storage.jd.com/confs/config_file_' + v._id + '.conf';
+          });
         }
       });
     }
@@ -25,26 +29,51 @@ angular.module('manageApp')
       LxDialogService.open('editDepsDialog');
     };
 
-    $scope.generate = function (dep) {
-      Deps.generate({
+    // $scope.generate = function (dep) {
+    //   Deps.generate({
+    //     id: dep._id
+    //   }).$promise.then(function (data) {
+    //     if (data.no === 0) {
+    //       $scope.publishData = {
+    //         id: dep._id,
+    //         showLoading: false,
+    //         publishBtnText: '发布CDN',
+    //         fileUrl: data.data.path,
+    //         fileName: data.data.fileName
+    //       };
+    //       LxDialogService.open('publishDialog');
+    //     }
+    //   });
+    // };
+
+    $scope.publish = function (dep) {
+      dep.publishBtnText = '正在发布';
+      Deps.publish({
         id: dep._id
       }).$promise.then(function (data) {
         if (data.no === 0) {
-          $scope.publishData = {
-            showLoading: false,
-            publishBtnText: '发布文件到线上',
-            fileUrl: data.data.path,
-            fileName: data.data.fileName
-          };
-          LxDialogService.open('publishDialog');
+          dep.publishBtnText = '发布文件';
         }
-      });
-    };
-
-    $scope.publish = function () {
-      $scope.publishData.publishing = true;
-      $scope.publishData.showLoading = true;
-      $scope.publishData.publishBtnText = '正在发布...';
+        else {
+          console.dir(data);
+        }
+      })
+      // $scope.publishData.showLoading = true;
+      // $scope.publishData.publishBtnText = '正在发布...';
+      // Deps.publish({
+      //   id: publishData.id,
+      //   filename: publishData.fileName
+      // }).$promise.then(function (data) {
+      //   if (data.no === 0) {
+      //     $scope.publishData.pubstate = true;
+      //     $scope.publishData.showLoading = false;
+      //     $scope.publishData.publishBtnText = '发布成功';
+      //     $scope.publishData.cdnUrl = data.data.path;
+      //   }
+      //   else {
+      //     console.dir(data);
+      //   }
+      // });
     };
 
     $scope.add = function () {
@@ -52,7 +81,12 @@ angular.module('manageApp')
         existDeps: [],
         createDeps: [],
         showExist: true,
-        showLoading: false
+        showLoading: false,
+        autoPublish: true,
+        jsonpConf: {
+          enable: true,
+          callback: ""
+        }
       };
       $scope.modifyType = 'add';
       LxDialogService.open('editDepsDialog');
@@ -108,11 +142,12 @@ angular.module('manageApp')
       editData.existDeps = _.dropRightWhile(editData.existDeps, function (item) {
         return item === null;
       });
-      if (!$scope.uriValidation(editData.uri) || !$scope.emptyValidation(editData.description)) {
+      if (!$scope.uriValidation(editData.uri) || !$scope.emptyValidation(editData.description) || !$scope.functionNameValidation(editData.jsonpConf.callback)) {
         LxNotificationService.error('请输入正确！');
         return;
       }
       $scope.currentEdit.showLoading = true;
+      
       if ($scope.modifyType === 'edit') {
         Deps.update(editData).$promise.then(function () {
           $scope.currentEdit.showLoading = false;
@@ -136,7 +171,12 @@ angular.module('manageApp')
       return ServiceHelper.regRex.empty.test(input);
     };
 
+    $scope.functionNameValidation = function (input) {
+      return ServiceHelper.regRex.functionName.test(input);
+    };
+
     getDepsList();
+
     $scope.fetchExistDeps = {
       selected: null,
       list: [],

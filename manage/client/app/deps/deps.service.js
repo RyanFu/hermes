@@ -15,7 +15,12 @@ angular.module('manageApp')
         params: {
           id: 'generate'
         }
+      },
+      publish: {
+        method: 'POST',
+        params: {
+          id: 'publish'
+        }
       }
-
     });
   });

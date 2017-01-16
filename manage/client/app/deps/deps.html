@@ -1,26 +1,86 @@
+<!-- 主页面 -->
 <section class="deps common_section">
-  <h1 class="clearfix">页面依赖管理<button class="btn btn--m btn--green btn--raised deps_add" ng-click="add()" lx-ripple>新增页面</button></h1>
+  <h1 class="clearfix">
+    页面依赖管理
+    <div class='float-right'>
+      <lx-button lx-color="green" lx-type="raised" ng-click="add()" lx-ripple>新增页面</lx-button>
+    </div>
+  </h1>
   <div class="deps_list">
     <div class="card deps_item" ng-repeat="depItem in depsList">
-      <div class="card__header clearfix">
-        <span class="deps_item_url">{{ depItem.uri }}</span>
-        <button ng-click="delete($index)" class="deps_item_delete btn btn--m btn--red btn--icon" lx-ripple><i class="mdi mdi-delete"></i></button>
-        <button ng-click="edit(depItem)" class="deps_item_edit btn btn--m btn--blue btn--icon" lx-ripple><i class="mdi mdi-pencil"></i></button>
-        <button ng-click="generate(depItem)" class="deps_item_generate btn btn--s btn--blue btn--raised" lx-ripple>生成文件</button>
-      </div>
-      <div class="card__body">
-        <p class="deps_item_description">{{ depItem.description }}</p>
-        <p class="deps_item_info">
-          <span class="deps_item_info_author">创建者：{{ depItem.creator.name }}</span>
-          <span class="deps_item_info_time">创建时间：{{ depItem.createTime | date:'yyyy-MM-dd HH:mm' }}</span>
-        </p>
-        <div class="deps_item_pages clearfix">
-          <a href="/resources/{{ page._id }}" ng-repeat="page in depItem.pages" class="deps_item_pages_link btn btn--m btn--blue btn--flat" lx-ripple>{{ page.uri }}</a>
+      <div class="p+">
+        <div class='float-right'>
+          <lx-button lx-color="red" lx-type="icon" ng-click="delete(depItem)" lx-tooltip="删除" lx-tooltip-position="bottom" lx-ripple>
+            <lx-icon lx-size="xl" lx-id="delete"></lx-icon>
+          </lx-button>
+        </div>
+        <div class='float-right'>
+          <lx-button lx-color='blue' lx-type="icon" ng-click="edit(depItem)" lx-tooltip="编辑" lx-tooltip-position="bottom" lx-ripple>
+            <lx-icon lx-size="xl" lx-id="pencil"></lx-icon>
+          </lx-button>
+        </div>
+        <div class='float-right'>
+          <lx-button lx-color="green" lx-type="icon" ng-click="publish(depItem)" lx-ripple lx-tooltip="{{ depItem.publishBtnText }}" lx-tooltip-position="bottom">
+            <lx-icon lx-size="xl" lx-id="cloud-upload"></lx-icon>
+          </lx-button>
+        </div>
+        <span class="fs-title display-block mb">{{ depItem.uri }}</span>
+        <div class="divider divider--dark"></div>
+        <div flex-container='row' flex-wrap>
+          <div flex-item="6">
+            <ul class="list fs-body-2">
+              <li class="list-row list-row">
+                  <div class="list-row__primary">
+                    <lx-icon lx-id="book-open" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
+                  </div>
+                  <div class="list-row__content">
+                      <span>简介：{{ depItem.description }}</span>
+                  </div>
+              </li>
+              <li class="list-row  list-row--multi-line">
+                  <div class="list-row__primary">
+                    <lx-icon lx-id="share-variant" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
+                  </div>
+                  <div class="list-row__content">
+                    <span class="display-block">加载页面：</span>
+                    <span class="display-block fs-body-1 tc-black-2">
+                      <lx-button lx-type="flat" ng-repeat="page in depItem.pages">
+                        <a href="/resources/{{ page._id }}">
+                          {{ page.uri }}
+                        </a>
+                      </lx-button>
+                    </span>
+                  </div>
+              </li>
+            </ul>
+          </div>
+          <div flex-item="6">
+            <ul class="list fs-body-2">
+              <li class="list-row list-row">
+                  <div class="list-row__primary">
+                    <lx-icon lx-id="account" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
+                  </div>  
+                  <div class="list-row__content">
+                    <span>创建者：{{ depItem.creator.name }}</span>
+                  </div>
+              </li>
+              <li class="list-row list-row">
+                  <div class="list-row__primary">
+                    <lx-icon lx-id="camera-timer" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
+                  </div>
+                  <div class="list-row__content">
+                    <span>创建时间：{{ depItem.createTime | date:'yyyy-MM-dd HH:mm' }}</span>
+                  </div>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
+
+<!-- 添加新依赖关系 -->
 <lx-dialog class="dialog dialog--l" id="editDepsDialog" auto-close="true" onclose="closingDialog()" onscrollend="scrollEndDialog()">
   <div class="dialog__header">
     <div class="toolbar bgc-light-blue-700 pl++">
@@ -44,18 +104,52 @@
       </lx-text-field>
       <span class="text-field-error" ng-if="!emptyValidation(currentEdit.description)">描述不能为空</span>
     </div>
+    <div class='pt+'>
+      <lx-checkbox ng-model="currentEdit.autoPublish" lx-color="blue">自动发布CDN</lx-checkbox>
+    </div>
+
+    <div class='pt+ pb+'>
+      <lx-checkbox ng-model="currentEdit.jsonpConf.enable" lx-color="blue">使用jsonp (默认回调为jsonpCallbackHermes)</lx-checkbox>
+      <div ng-show='currentEdit.jsonpConf.enable'>
+        <lx-text-field label="自定义回调" error="!functionNameValidation(currentEdit.jsonpConf.callback)">
+          <input type="text" ng-model="currentEdit.jsonpConf.callback">
+        </lx-text-field>
+      </div>
+    </div>
+
     <div class="deps_edit" ng-show="currentEdit.pages.length > 0">
       <p class="deps_edit_title">依赖页面</p>
       <ul class="deps_edit_list clearfix">
-        <li class="deps_edit_item" ng-repeat="page in currentEdit.pages"><span class="deps_edit_item_txt">{{ page.uri }}</span><button class="btn btn--s btn--red btn--icon" ng-click="deleteCurrentOneDep($index)" lx-ripple><i class="mdi mdi-minus-circle"></i></button></li>
+        <li class="deps_edit_item" ng-repeat="page in currentEdit.pages">
+          <span class="deps_edit_item_txt">{{ page.uri }}</span>
+          <button class="btn btn--s btn--red btn--icon" ng-click="deleteCurrentOneDep($index)" lx-ripple>
+            <lx-icon lx-size="xl" lx-id="minus-circle"></lx-icon>
+          </button>
+        </li>
       </ul>
     </div>
+
     <div class="deps_new">
-      <p class="deps_new_title">新增依赖<a class="deps_new_title_link" ng-class="{ true: 'active' }[currentEdit.showExist]" href="javascript:;" ng-click="currentEdit.showExist=true;">从已有页面中选择</a><a class="deps_new_title_link"  ng-class="{ true: 'active' }[!currentEdit.showExist]" href="javascript:;" ng-click="currentEdit.showExist=false;">新添加</a></p>
+      <div class='pt++ pb+ clearfix fs-body-1'>
+        <div class="deps_new_title pb">新增依赖</div>
+        <lx-radio-group>
+          <lx-radio-button class='float-left pr++' lx-color="blue" name="exist" ng-value="true" ng-model="currentEdit.showExist">
+            从已有页面中选择
+            </lx-radio-button>
+          <lx-radio-button class='float-left pr++' lx-color="blue" name="exist" ng-value="false" ng-model="currentEdit.showExist">
+            添加新页面
+          </lx-radio-button>
+        </lx-radio-group>
+      </div>
       <div class="deps_new_exist" ng-show="currentEdit.showExist">
-        <button class="btn btn--s btn--green btn--raised" ng-click="addExistOne()" lx-ripple>新增一个</button>
-        <div flex-container="row" ng-repeat="existDep in currentEdit.existDeps track by $index">
-          <lx-select class="deps_new_select" flex-item ng-model="currentEdit.existDeps[$index]" change="cbSelect.exec(newValue, oldValue)" placeholder="请输入查询的关键字" choices="fetchExistDeps.list" filter="fetchExistDeps.update(newValue, oldValue)" loading="{{ fetchExistDeps.loading }}" min-length="2" allow-clear="true" selection-to-model="fetchExistDeps.toModel(data, callback)">
+        <lx-button lx-color="blue" lx-type="raised" ng-click="addExistOne()" lx-ripple>新增一个</lx-button>
+        <div ng-repeat="existDep in currentEdit.existDeps track by $index">
+          <lx-select class="deps_new_select" ng-model="currentEdit.existDeps[$index]" change="cbSelect.exec(newValue, oldValue)" placeholder="请输入查询的关键字" choices="fetchExistDeps.list" filter="fetchExistDeps.update(newValue, oldValue)" loading="{{ fetchExistDeps.loading }}" min-length="2" allow-clear="true" selection-to-model="fetchExistDeps.toModel(data, callback)">
+            <div class="float-right">
+              <lx-button lx-size="xs" lx-type="fab" ng-click="deleteExistOne($index)" lx-color="red">
+                <lx-icon lx-size="xl" lx-id="minus"></lx-icon>
+              </lx-button>
+            </div>
             <lx-select-selected>
               {{ $selected.uri }} ({{ $selected.description }})
             </lx-select-selected>
@@ -64,34 +158,38 @@
               {{ $choice.uri }} - {{ $choice.description }}
             </lx-select-choices>
           </lx-select>
-          <button class="float--left btn btn--m btn--red btn--icon" ng-click="deleteExistOne($index)" lx-ripple><i class="mdi mdi-minus-circle"></i></button>
         </div>
       </div>
       <div class="deps_new_create" ng-show="!currentEdit.showExist">
-        <button class="btn btn--s btn--green btn--raised" ng-click="addCreateOne()" lx-ripple>新增一个</button>
-        <div class="deps_new_input" flex-container="row" flex-align="end end" flex-gutter="24" ng-repeat="createDep in currentEdit.createDeps">
-          <div flex-item>
-            <lx-text-field label="页面url">
+        <lx-button lx-color="blue" lx-type="raised" ng-click="addCreateOne()" lx-ripple>新增一个</lx-button>
+        <div class="deps_new_input" flex-container="row" flex-gutter="24" ng-repeat="createDep in currentEdit.createDeps">
+          <div>
+            <div class="float-right mt+++">
+              <lx-button lx-size="xs" lx-type="fab" ng-click="deleteCreateOne($index)" lx-color="red"><i class="mdi mdi-minus"></i></lx-button>
+            </div>
+            <lx-text-field class="mr+++" label="页面url">
               <input type="text" ng-model="createDep.uri">
             </lx-text-field>
           </div>
-          <div flex-item>
+          <div>
             <lx-text-field label="页面介绍">
               <input type="text" ng-model="createDep.description">
             </lx-text-field>
           </div>
-          <button class="float--left btn btn--m btn--red btn--icon" ng-click="deleteCreateOne($index)" lx-ripple><i class="mdi mdi-minus-circle"></i></button>
         </div>
       </div>
     </div>
+
   </div>
 
   <div class="dialog__actions">
-    <button class="btn btn--m btn--black btn--flat" lx-ripple lx-dialog-close>取消</button>
-    <button class="btn btn--m btn--black btn--flat" ng-click="saveEdit()" lx-ripple>确定</button>
+    <lx-button lx-color="blue" lx-type="flat" lx-ripple lx-dialog-close>取消</lx-button>
+    <lx-button lx-color="blue" lx-type="raised" ng-click="saveEdit()" lx-ripple>确定</lx-button>
   </div>
 </lx-dialog>
 
+
+<!-- 生成对话框 -->
 <lx-dialog class="dialog dialog--l publish_dialog" id="publishDialog" auto-close="true" onclose="closingDialog()" onscrollend="scrollEndDialog()">
   <div class="dialog__header">
     <div class="toolbar bgc-light-blue-700 pl++">
@@ -104,7 +202,10 @@
 
   <div class="dialog__content p++">
     <p>生成文件成功！</p>
-    <p><a href="{{ publishData.fileUrl }}" class="publish_file" target="_blank" download>{{ publishData.fileName }}</a></p>
-    <p><button class="btn btn--m btn--green btn--raised" ng-click="publish()" ng-disabled="publishData.publishing" lx-ripple>{{ publishData.publishBtnText }}</button></p>
+    <p><a href="{{ publishData.fileUrl }}" class="publish_file" target="_blank" download>下载 {{ publishData.fileName }}</a></p>
+    <p><button class="btn btn--m btn--green btn--raised" ng-click="publish(publishData)" ng-disabled="publishData.publishing" lx-ripple>{{ publishData.publishBtnText }}</button></p>
+    <p ng-show="publishData.pubstate">
+        CDN链接: <a href="{{ publishData.cdnUrl }}" class="publish_file" target="_blank">{{ publishData.cdnUrl }}</a>
+    </p>
   </div>
 </lx-dialog>

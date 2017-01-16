@@ -6,10 +6,22 @@
 
 // Set default node environment to development
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-
+ 
 var express = require('express');
 var mongoose = require('mongoose');
 var config = require('./config/environment');
+
+var
+  fs = require('fs'),
+  path = require('path'),
+  jfs = require('./components/jfs');
+
+// 测试jfs服务
+jfs.test(function (err) {
+  if (err) console.log('Failed to connect to storage.jd.com: ' + err.msg);
+  else console.log('Successfully connected to storage.jd.com. ');
+});
+
 // Connect to database
 mongoose.connect(config.mongo.uri, config.mongo.options);
 
@@ -26,6 +38,15 @@ var socketio = require('socket.io')(server, {
 require('./config/socketio')(socketio);
 require('./config/express')(app);
 require('./routes')(app);
+
+
+var worker = require('./components/worker');
+setInterval(function () {
+  worker.work();
+}, 3000);
+
+
+
 
 // Start server
 server.listen(config.port, config.ip, function () {
