@@ -10,7 +10,7 @@
     <div class="card deps_item" ng-repeat="depItem in depsList">
       <div class="p+">
         <div class='float-right'>
-          <lx-button lx-color="red" lx-type="icon" ng-click="delete(depItem)" lx-tooltip="删除" lx-tooltip-position="bottom" lx-ripple>
+          <lx-button lx-color="red" lx-type="icon" ng-click="delete($index)" lx-tooltip="删除" lx-tooltip-position="bottom" lx-ripple>
             <lx-icon lx-size="xl" lx-id="delete"></lx-icon>
           </lx-button>
         </div>
@@ -35,6 +35,14 @@
                   </div>
                   <div class="list-row__content">
                       <span>简介：{{ depItem.description }}</span>
+                  </div>
+              </li>
+              <li class="list-row list-row">
+                  <div class="list-row__primary">
+                    <lx-icon lx-id="camera-timer" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
+                  </div>
+                  <div class="list-row__content">
+                    <span>创建时间：{{ depItem.createTime | date:'yyyy-MM-dd HH:mm' }}</span>
                   </div>
               </li>
               <li class="list-row  list-row--multi-line">
@@ -69,7 +77,10 @@
                     <lx-icon lx-id="camera-timer" lx-size="s" lx-color="grey" lx-type="flat"></lx-icon>
                   </div>
                   <div class="list-row__content">
-                    <span>创建时间：{{ depItem.createTime | date:'yyyy-MM-dd HH:mm' }}</span>
+                    CDN地址：
+                    <a href='http://storage.jd.com/confs/config_file_{{ depItem._id }}.conf' target="_blank">
+                      <span>http://storage.jd.com/confs/config_file_{{ depItem._id }}.conf</span>
+                    </a>
                   </div>
               </li>
             </ul>
@@ -141,10 +152,23 @@
           </lx-radio-button>
         </lx-radio-group>
       </div>
+
+      <!-- 已存在资源页面 -->
       <div class="deps_new_exist" ng-show="currentEdit.showExist">
         <lx-button lx-color="blue" lx-type="raised" ng-click="addExistOne()" lx-ripple>新增一个</lx-button>
         <div ng-repeat="existDep in currentEdit.existDeps track by $index">
-          <lx-select class="deps_new_select" ng-model="currentEdit.existDeps[$index]" change="cbSelect.exec(newValue, oldValue)" placeholder="请输入查询的关键字" choices="fetchExistDeps.list" filter="fetchExistDeps.update(newValue, oldValue)" loading="{{ fetchExistDeps.loading }}" min-length="2" allow-clear="true" selection-to-model="fetchExistDeps.toModel(data, callback)">
+          <lx-select
+          class="deps_new_select"
+          ng-model="currentEdit.existDeps[$index]"
+          ng-change="cbSelect.exec(newValue, oldValue)"
+          placeholder="请输入查询的关键字"
+          lx-choices="fetchExistDeps.list"
+          filter="fetchExistDeps.update(newValue, oldValue)"
+          lx-loading="fetchExistDeps.loading"
+          min-length="2"
+          allow-clear="true"
+          lx-selection-to-model="fetchExistDeps.toModel(data, callback)"
+          lx-model-to-selection="fetchExistDeps.toSelection(data, callback)">
             <div class="float-right">
               <lx-button lx-size="xs" lx-type="fab" ng-click="deleteExistOne($index)" lx-color="red">
                 <lx-icon lx-size="xl" lx-id="minus"></lx-icon>
@@ -160,21 +184,25 @@
           </lx-select>
         </div>
       </div>
+
+      <!-- 新创建资源页面 -->
       <div class="deps_new_create" ng-show="!currentEdit.showExist">
         <lx-button lx-color="blue" lx-type="raised" ng-click="addCreateOne()" lx-ripple>新增一个</lx-button>
-        <div class="deps_new_input" flex-container="row" flex-gutter="24" ng-repeat="createDep in currentEdit.createDeps">
-          <div>
-            <div class="float-right mt+++">
-              <lx-button lx-size="xs" lx-type="fab" ng-click="deleteCreateOne($index)" lx-color="red"><i class="mdi mdi-minus"></i></lx-button>
-            </div>
+        <div class="deps_new_input" flex-container="row" flex-gutter="24" flex-column="12" ng-repeat="createDep in currentEdit.createDeps">
+          <div flex-item='4'>
             <lx-text-field class="mr+++" label="页面url">
               <input type="text" ng-model="createDep.uri">
             </lx-text-field>
           </div>
-          <div>
+          <div flex-item='7'>
             <lx-text-field label="页面介绍">
               <input type="text" ng-model="createDep.description">
             </lx-text-field>
+          </div>
+          <div flex-item='1'>
+            <lx-button lx-size="xs" lx-type="fab" ng-click="deleteCreateOne($index)" lx-color="red" class="mt+++">
+              <lx-icon lx-size="xl" lx-id="minus"></lx-icon>
+            </lx-button>
           </div>
         </div>
       </div>

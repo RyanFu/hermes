@@ -47,20 +47,86 @@ exports.show = function(req, res) {
   });
 };
 
+var createOneDep = function (param) {
+  return new Promise(function (resolve, reject) {
+    Dep.create(param, function (err, dep) {
+      if(err) reject(err);
+      else resolve(dep);
+    });
+  });
+};
+
+
 // Creates a new dep in the DB.
+  // exports.create = function(req, res) {
+  //   var body = req.body;
+  //   var existDeps = req.body.existDeps; // 已经存在的
+  //   var createDeps = req.body.createDeps; // 需要新创建
+  //   var jsonpConf = body.jsonpConf || { enable: true };
+  //   var user = req.user;
+  //   var depParam = {
+  //     uri: body.uri,
+  //     description: body.description,
+  //     creator: user._id,
+  //     createTime: new Date(),
+  //     jsonpConf: body.jsonpConf
+  //   };
+  //   if (!_.isArray(existDeps) && !_.isArray(createDeps)) {
+  //     return res.json(200, {
+  //       no: 10000,
+  //       errmsg: '输入参数错误'
+  //     });
+
+  //   }
+  //   // 需要创建新的依赖关系
+  //   if (_.isArray(createDeps) && createDeps.length > 0) {
+  //     createDeps.forEach(function (item) {
+  //       item.creator = user._id;
+  //       item.createTime = new Date();
+  //     });
+  //     Page.collection.insert(createDeps, function (err, pages) {
+  //       if(err) {
+  //         if (err.code === 11000) {
+  //           return res.json(200, {
+  //             no: 10001,
+  //             errmsg: '所依赖的页面已经存在'
+  //           });
+  //         }
+  //         return handleError(res, err);
+  //       }
+  //       var pagesIds = _.pluck(pages, '_id');
+  //       if (_.isArray(existDeps) && existDeps.length > 0) {
+  //         existDeps = _.pluck(existDeps, '_id');
+  //         depParam.pages = pagesIds.concat(existDeps);
+  //       } else {
+  //         depParam.pages = pagesIds;
+  //       }
+  //       createOneDepByParam(depParam, res);
+  //     });
+  //   } else {
+  //     if (_.isArray(existDeps) && existDeps.length > 0) {
+  //       existDeps = _.pluck(existDeps, '_id');
+  //     }
+  //     depParam.pages = existDeps;
+  //     createOneDepByParam(depParam, res);
+  //   }
+  // };
+
 exports.create = function(req, res) {
-  var body = req.body;
-  var existDeps = req.body.existDeps; // 已经存在的
-  var createDeps = req.body.createDeps; // 需要新创建
-  var jsonpConf = body.jsonpConf || { enable: true };
-  var user = req.user;
-  var depParam = {
-    uri: body.uri,
-    description: body.description,
-    creator: user._id,
-    createTime: new Date(),
-    jsonpConf: body.jsonpConf
-  };
+  var
+    body = req.body,
+    existDeps = req.body.existDeps, // 已经存在的
+    createDeps = req.body.createDeps, // 需要新创建
+    jsonpConf = body.jsonpConf || { enable: true },
+    user = req.user,
+    depParam = {
+      uri: body.uri,
+      description: body.description,
+      creator: user._id,
+      createTime: new Date(),
+      autoPublish: body.autoPublish,
+      jsonpConf: body.jsonpConf
+    }, dep;
   if (!_.isArray(existDeps) && !_.isArray(createDeps)) {
     return res.json(200, {
       no: 10000,
@@ -68,8 +134,7 @@ exports.create = function(req, res) {
     });
 
   }
-  // 需要创建新的依赖关系
-  if (_.isArray(createDeps) && createDeps.length > 0) {
+  if (_.isArray(createDeps) && createDeps.length > 0) { // 有需要创建的活动内容
     createDeps.forEach(function (item) {
       item.creator = user._id;
       item.createTime = new Date();
@@ -84,95 +149,65 @@ exports.create = function(req, res) {
         }
         return handleError(res, err);
       }
-      var pagesIds = _.pluck(pages, '_id');
+      var
+        pagesIds = _.pluck(pages, '_id');
+
       if (_.isArray(existDeps) && existDeps.length > 0) {
         existDeps = _.pluck(existDeps, '_id');
         depParam.pages = pagesIds.concat(existDeps);
       } else {
         depParam.pages = pagesIds;
       }
-      createOneDepByParam(depParam, res);
+      createOneDep(depParam)
+        .then(function (data) { // 生成
+          dep = data;
+          return generator.generate(dep._id);
+        })
+        .then(function (data) { // 发布
+          return publisher.publish(dep._id);
+        })
+        .then(function () { // 回包
+          res.json(201, {
+            no: 0,
+            errmsg: '成功',
+            data: dep
+          });
+        })
+        .catch(function (err) {
+          res.json(200, {
+            no: 10002,
+            errmsg: '要添加的页面已经存在了'
+          });
+        });
     });
-  } else {
+  } else { // 需要创建的活动内容
     if (_.isArray(existDeps) && existDeps.length > 0) {
       existDeps = _.pluck(existDeps, '_id');
     }
     depParam.pages = existDeps;
-    createOneDepByParam(depParam, res);
+    createOneDep(depParam)
+      .then(function (data) { // 生成
+        dep = data;
+        return generator.generate(dep._id);
+      })
+      .then(function (data) { // 发布
+        return publisher.publish(dep._id);
+      })
+      .then(function () { // 回包
+        res.json(201, {
+          no: 0,
+          errmsg: '成功',
+          data: dep
+        });
+      })
+      .catch(function (err) {
+        res.json(200, {
+          no: 10002,
+          errmsg: '要添加的页面已经存在了'
+        });
+      });
   }
 };
-
-// Updates an existing dep in the DB.
-// exports.update = function(req, res) {
-//   if(req.body._id) { delete req.body._id; }
-//   Dep.findById(req.params.id, function (err, dep) {
-//     if (err) { return handleError(res, err); }
-//     if(!dep) { return res.send(404); }
-//     var body = req.body;
-//     var depPages = body.pages;
-//     var createDeps = body.createDeps;
-//     var existDeps = body.existDeps;
-//     var user = req.user;
-//     var jsonpConf = body.jsonpConf || { enable: true };
-//     var depsParam = [];
-//     if (_.isArray(createDeps) && createDeps.length > 0) {
-//       createDeps.forEach(function (item) {
-//         item.creator = user._id;
-//         item.createTime = new Date();
-//       });
-//       Page.collection.insert(createDeps, function (err, pages) {
-//         if(err) {
-//           if (err.code === 11000) {
-//             return res.json(200, {
-//               no: 10001,
-//               errmsg: '所依赖的页面已经存在'
-//             });
-//           }
-//           return handleError(res, err);
-//         }
-//         var pagesIds = _.pluck(pages, '_id');
-//         if (_.isArray(existDeps) && existDeps.length > 0) {
-//           existDeps = _.pluck(existDeps, '_id');
-//           depsParam = depsParam.concat(existDeps);console.log(typeof c._id);
-//         }
-//         depsParam = depsParam.concat(pagesIds);
-//         depPages = _.pluck(depPages, '_id');
-//         depPages = depPages.concat(depsParam);
-//         dep.uri = req.body.uri;
-//         dep.description = req.body.description;
-//         dep.pages = depPages;
-//         dep.save(function (err) {
-//           if (err) { return handleError(res, err); }
-//           return res.json(200, {
-//             no: 0,
-//             errmsg: '成功',
-//             data: dep
-//           });
-//         });
-//       });
-//     } else {
-//       if (_.isArray(existDeps) && existDeps.length > 0) {
-//         existDeps = _.pluck(existDeps, '_id');
-//         depsParam = depsParam.concat(existDeps);
-//       }
-//       depPages = _.pluck(depPages, '_id');
-//       depPages = depPages.concat(depsParam);
-//       dep.pages = depPages;
-//       dep.uri = body.uri;
-//       dep.jsonpConf = jsonpConf;
-//       dep.description = body.description;
-//       dep.save(function (err) {
-//         if (err) { return handleError(res, err); }
-//         return res.json(200, {
-//           no: 0,
-//           errmsg: '成功',
-//           data: dep
-//         });
-//       });
-//     }
-//   });
-// };
-
 
 var createPages = function (createDeps, user) {
   return new Promise(function (resolve, reject) {

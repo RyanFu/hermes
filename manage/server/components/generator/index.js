@@ -34,6 +34,7 @@ generate = function (depId) {
         var newFile = path.join(folderName, 'config_file_' + depId + '_' + now + '.conf');
         var defaultFile = path.join(folderName, 'config_file_' + depId + '.conf');
         var jsonpConf = dep.jsonpConf;
+        var depCopy = {};
         var existPromise = function () {
           return new Promise(function (resolve, reject) {
             fs.exists(folderName, function (exists) {
@@ -71,16 +72,17 @@ generate = function (depId) {
             }
           });
         }
-        delete dep.pages;
-        delete dep.jsonpConf;
+        Object.assign(depCopy, dep);
+        delete depCopy.pages;
+        delete depCopy.jsonpConf;
+        delete depCopy.autoPublish;
 
         existPromise().then(function () {}, mkdirPromise).then(function () {
           var
-            hash = crypto.createHash('sha256'),
-            str;
-          hash.update(JSON.stringify(dep));
-          dep.version = hash.digest('hex');
-          str = JSON.stringify(dep);
+            hash = crypto.createHash('sha256'), str;
+          hash.update(JSON.stringify(depCopy));
+          depCopy.version = hash.digest('hex');
+          str = JSON.stringify(depCopy);
           if (jsonpConf.enable) {
             str = (jsonpConf.callback || 'jsonpCallbackHermes') + '(' + str + ');';
           }
@@ -101,7 +103,7 @@ generate = function (depId) {
                     path: '/data/config_file_' + depId + '.conf'
                   }
                 });
-              })
+              });
           });
         });
 

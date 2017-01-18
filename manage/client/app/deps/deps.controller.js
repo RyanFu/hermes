@@ -207,6 +207,10 @@ angular.module('manageApp')
         } else {
           callback();
         }
+      },
+      toSelection: function (data, callback) {
+        if (data) callback(data);
+        else callback();
       }
     };
   });
