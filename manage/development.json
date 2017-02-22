@@ -1,0 +1,10 @@
+{
+    "uid": "app",
+    "append": true,
+    "watch": true,
+    "script": "server/app.js",
+    "sourceDir": "/usr/share/nginx/html/hermes",
+    "logFile": "out.log",
+    "outFile": "stdout.log",
+    "errFile": "stderr.log"
+}

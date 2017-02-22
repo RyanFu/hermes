@@ -18,7 +18,8 @@ exports.index = function(req, res) {
   if (!user) {
     res.json(404, {
       errmsg: '尚未登录'
-    })
+    });
+    return;
   }
   var searchParam = {};
   if (user.role === 'user') {
